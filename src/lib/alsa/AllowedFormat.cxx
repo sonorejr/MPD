@@ -18,6 +18,16 @@ AllowedFormat::AllowedFormat(std::string_view s)
 {
 #ifdef ENABLE_DSD
 	dop = RemoveSuffix(s, "=dop"sv);
+	if (dop)
+		dsd_bits = 0;
+	else if (RemoveSuffix(s, "=dsd_u8"sv))
+		dsd_bits = 8;
+	else if (RemoveSuffix(s, "=dsd_u16"sv))
+		dsd_bits = 16;
+	else if (RemoveSuffix(s, "=dsd_u32"sv))
+		dsd_bits = 32;
+	else
+		dsd_bits = 0;
 #endif
 
 	char buffer[64];
@@ -31,6 +41,9 @@ AllowedFormat::AllowedFormat(std::string_view s)
 #ifdef ENABLE_DSD
 	if (dop && format.format != SampleFormat::DSD)
 		throw std::invalid_argument("DoP works only with DSD");
+
+	if (dsd_bits != 0 && format.format != SampleFormat::DSD)
+		throw std::invalid_argument("A DSD sample format works only with DSD");
 #endif
 }
 
@@ -61,6 +74,10 @@ ToString(const std::forward_list<AllowedFormat> &allowed_formats) noexcept
 #ifdef ENABLE_DSD
 		if (i.dop)
 			result += "=dop";
+		else if (i.dsd_bits != 0) {
+			result += "=dsd_u";
+			result += std::to_string(i.dsd_bits);
+		}
 #endif
 	}
 

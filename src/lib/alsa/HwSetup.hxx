@@ -25,11 +25,14 @@ struct HwResult {
  * @param audio_format an #AudioFormat to be configured (or modified)
  * by this function
  * @param params to be modified by this function
+ * @param dsd_bits for DSD, the ALSA DSD sample width to use (8, 16
+ * or 32), or 0 to take the first the device accepts
  */
 HwResult
 SetupHw(snd_pcm_t *pcm,
 	unsigned buffer_time, unsigned period_time,
-	AudioFormat &audio_format, PcmExport::Params &params);
+	AudioFormat &audio_format, PcmExport::Params &params,
+	unsigned dsd_bits=0);
 
 } // namespace Alsa
 

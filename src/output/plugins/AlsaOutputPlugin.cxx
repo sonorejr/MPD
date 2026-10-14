@@ -283,7 +283,8 @@ private:
 	 *
 	 * Throws on error.
 	 */
-	void Setup(AudioFormat &audio_format, PcmExport::Params &params);
+	void Setup(AudioFormat &audio_format, PcmExport::Params &params,
+		   unsigned dsd_bits=0);
 
 #ifdef ENABLE_DSD
 	void SetupDop(AudioFormat audio_format,
@@ -292,7 +293,7 @@ private:
 
 	void SetupOrDop(AudioFormat &audio_format, PcmExport::Params &params
 #ifdef ENABLE_DSD
-			, bool dop
+			, bool dop, unsigned dsd_bits
 #endif
 			);
 
@@ -544,11 +545,11 @@ AlsaSetupSw(snd_pcm_t *pcm, snd_pcm_uframes_t start_threshold,
 
 inline void
 AlsaOutput::Setup(AudioFormat &audio_format,
-		  PcmExport::Params &params)
+		  PcmExport::Params &params, unsigned dsd_bits)
 {
 	const auto hw_result = Alsa::SetupHw(pcm,
 					     buffer_time, period_time,
-					     audio_format, params);
+					     audio_format, params, dsd_bits);
 
 	FmtDebug(alsa_output_domain, "format={} ({})",
 		 snd_pcm_format_name(hw_result.format),
@@ -624,7 +625,7 @@ AlsaOutput::SetupDop(const AudioFormat audio_format,
 inline void
 AlsaOutput::SetupOrDop(AudioFormat &audio_format, PcmExport::Params &params
 #ifdef ENABLE_DSD
-		       , bool dop
+		       , bool dop, unsigned dsd_bits
 #endif
 		       )
 {
@@ -642,8 +643,10 @@ AlsaOutput::SetupOrDop(AudioFormat &audio_format, PcmExport::Params &params
 	}
 
 	try {
-#endif
+		Setup(audio_format, params, dsd_bits);
+#else
 		Setup(audio_format, params);
+#endif
 #ifdef ENABLE_DSD
 	} catch (...) {
 		if (dop_error)
@@ -678,6 +681,7 @@ AlsaOutput::Open(AudioFormat &audio_format)
 
 #ifdef ENABLE_DSD
 	bool dop;
+	unsigned dsd_bits = 0;
 #endif
 
 	{
@@ -692,6 +696,7 @@ AlsaOutput::Open(AudioFormat &audio_format)
 			audio_format.ApplyMask(a.format);
 #ifdef ENABLE_DSD
 			dop = a.dop;
+			dsd_bits = a.dsd_bits;
 #endif
 		}
 	}
@@ -716,7 +721,7 @@ AlsaOutput::Open(AudioFormat &audio_format)
 	try {
 		SetupOrDop(audio_format, params
 #ifdef ENABLE_DSD
-			   , dop
+			   , dop, dsd_bits
 #endif
 			   );
 	} catch (...) {

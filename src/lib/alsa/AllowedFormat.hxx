@@ -20,6 +20,14 @@ struct AllowedFormat {
 	AudioFormat format;
 #ifdef ENABLE_DSD
 	bool dop;
+
+	/**
+	 * The ALSA DSD sample width this format is played in - 8,
+	 * 16 or 32 bits, from a "=dsd_u8", "=dsd_u16" or
+	 * "=dsd_u32" suffix - or 0 to take the first the device
+	 * accepts (DSD_U8, then DSD_U32, then DSD_U16).
+	 */
+	unsigned dsd_bits;
 #endif
 
 	/**

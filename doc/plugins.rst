@@ -902,7 +902,7 @@ The `Advanced Linux Sound Architecture (ALSA) <http://www.alsa-project.org/>`_ p
        workaround for some DACs which emit noise when stopping DSD
        playback.
    * - **allowed_formats F1 F2 ...**
-     - Specifies a list of allowed audio formats, separated by a space. All items may contain asterisks as a wild card, and may be followed by "=dop" to enable DoP (DSD over PCM) for this particular format. The first matching format is used, and if none matches, MPD chooses the best fallback of this list.
+     - Specifies a list of allowed audio formats, separated by a space. All items may contain asterisks as a wild card, and may be followed by "=dop" to enable DoP (DSD over PCM) for this particular format. A DSD format may instead be followed by "=dsd_u8", "=dsd_u16" or "=dsd_u32" to play it in that ALSA DSD sample format, rather than the first one the device accepts (DSD_U8, then DSD_U32, then DSD_U16): a device or plugin that takes several may treat them differently. The first matching format is used, and if none matches, MPD chooses the best fallback of this list.
        
        Example: "96000:16:* 192000:24:* dsd64:*=dop *:dsd:*".
 

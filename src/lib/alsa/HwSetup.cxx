@@ -72,12 +72,39 @@ TryFormatOrByteSwap(snd_pcm_t *pcm, snd_pcm_hw_params_t *hwparams,
 
 /**
  * Attempts to configure the specified sample format.  On DSD_U8
- * failure, attempt to switch to DSD_U32 or DSD_U16.
+ * failure, attempt to switch to DSD_U32 or DSD_U16 - unless
+ * #dsd_bits names the one DSD sample width to use.
  */
 static int
 TryFormatDsd(snd_pcm_t *pcm, snd_pcm_hw_params_t *hwparams,
-	     snd_pcm_format_t fmt, PcmExport::Params &params)
+	     snd_pcm_format_t fmt, PcmExport::Params &params,
+	     [[maybe_unused]] unsigned dsd_bits)
 {
+#ifdef ENABLE_DSD
+	if (fmt == SND_PCM_FORMAT_DSD_U8 && dsd_bits != 0) {
+		/* allowed_formats named the DSD sample width
+		   ("=dsd_u8" etc.): a device that takes several
+		   may treat them differently, so try only that one */
+		auto mode = PcmExport::DsdMode::NONE;
+		if (dsd_bits == 32) {
+			fmt = IsLittleEndian()
+				? SND_PCM_FORMAT_DSD_U32_LE
+				: SND_PCM_FORMAT_DSD_U32_BE;
+			mode = PcmExport::DsdMode::U32;
+		} else if (dsd_bits == 16) {
+			fmt = IsLittleEndian()
+				? SND_PCM_FORMAT_DSD_U16_LE
+				: SND_PCM_FORMAT_DSD_U16_BE;
+			mode = PcmExport::DsdMode::U16;
+		}
+
+		int err = TryFormatOrByteSwap(pcm, hwparams, fmt, params);
+		if (err == 0)
+			params.dsd_mode = mode;
+		return err;
+	}
+#endif
+
 	int err = TryFormatOrByteSwap(pcm, hwparams, fmt, params);
 
 #ifdef ENABLE_DSD
@@ -112,13 +139,13 @@ TryFormatDsd(snd_pcm_t *pcm, snd_pcm_hw_params_t *hwparams,
 static int
 TryFormat(snd_pcm_t *pcm, snd_pcm_hw_params_t *hwparams,
 	  SampleFormat sample_format,
-	  PcmExport::Params &params)
+	  PcmExport::Params &params, unsigned dsd_bits)
 {
 	snd_pcm_format_t alsa_format = ToAlsaPcmFormat(sample_format);
 	if (alsa_format == SND_PCM_FORMAT_UNKNOWN)
 		return -EINVAL;
 
-	return TryFormatDsd(pcm, hwparams, alsa_format, params);
+	return TryFormatDsd(pcm, hwparams, alsa_format, params, dsd_bits);
 }
 
 /**
@@ -127,11 +154,11 @@ TryFormat(snd_pcm_t *pcm, snd_pcm_hw_params_t *hwparams,
 static int
 SetupSampleFormat(snd_pcm_t *pcm, snd_pcm_hw_params_t *hwparams,
 		  SampleFormat &sample_format,
-		  PcmExport::Params &params)
+		  PcmExport::Params &params, unsigned dsd_bits)
 {
 	/* try the input format first */
 
-	int err = TryFormat(pcm, hwparams, sample_format, params);
+	int err = TryFormat(pcm, hwparams, sample_format, params, dsd_bits);
 
 	/* if unsupported by the hardware, try other formats */
 
@@ -150,7 +177,7 @@ SetupSampleFormat(snd_pcm_t *pcm, snd_pcm_hw_params_t *hwparams,
 		if (mpd_format == sample_format)
 			continue;
 
-		err = TryFormat(pcm, hwparams, mpd_format, params);
+		err = TryFormat(pcm, hwparams, mpd_format, params, 0);
 		if (err == 0)
 			sample_format = mpd_format;
 	}
@@ -161,7 +188,8 @@ SetupSampleFormat(snd_pcm_t *pcm, snd_pcm_hw_params_t *hwparams,
 HwResult
 SetupHw(snd_pcm_t *pcm,
 	unsigned buffer_time, unsigned period_time,
-	AudioFormat &audio_format, PcmExport::Params &params)
+	AudioFormat &audio_format, PcmExport::Params &params,
+	unsigned dsd_bits)
 {
 	snd_pcm_hw_params_t *hwparams;
 	snd_pcm_hw_params_alloca(&hwparams);
@@ -180,7 +208,7 @@ SetupHw(snd_pcm_t *pcm,
 		throw Alsa::MakeError(err, "snd_pcm_hw_params_set_access() failed");
 
 	err = SetupSampleFormat(pcm, hwparams,
-				audio_format.format, params);
+				audio_format.format, params, dsd_bits);
 	if (err < 0)
 		throw Alsa::MakeError(err,
 				      FmtBuffer<256>("Failed to configure format {}",
